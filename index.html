@@ -3,20 +3,13 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
     <title>Air Juggler | Gesture Controlled Game</title>
 
     <link rel="stylesheet" href="style.css">
-
-    <!-- TensorFlow.js -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
-
-    <!-- Hand Pose Detection -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands"></script>
+    <script type="module" src="script.js"></script>
 </head>
 
 <body>
@@ -28,10 +21,13 @@
                 <span class="logo-icon">✋</span>
                 <h1>AIR JUGGLER</h1>
             </div>
-            <p>Gesture Controlled Game</p>
+
+            <p>GESTURE CONTROLLED GAME</p>
         </header>
 
+        <!-- SCORE BOARD -->
         <div class="score-board">
+
             <div class="score-card">
                 <span>SCORE</span>
                 <h2 id="score">0</h2>
@@ -41,19 +37,34 @@
                 <span>BEST</span>
                 <h2 id="high-score">0</h2>
             </div>
+
+            <div class="score-card difficulty-card">
+                <span>LEVEL</span>
+                <h2 id="difficulty" class="difficulty-easy">EASY</h2>
+            </div>
+
         </div>
 
+        <!-- GAME AREA -->
         <main class="game-area">
 
             <video id="webcam" autoplay playsinline></video>
-
             <canvas id="output-canvas"></canvas>
 
-            <div id="ball"></div>
+            <div id="particles-container"></div>
+            <div id="combo-text"></div>
 
+            <div id="ball"></div>
             <div id="paddle"></div>
 
+            <!-- PAUSE -->
+            <button id="pause-btn" class="pause-btn" title="Pause Game">
+                ⏸
+            </button>
+
+            <!-- START SCREEN -->
             <div class="start-screen" id="start-screen">
+
                 <div class="ball-icon">🏀</div>
 
                 <h2>READY TO PLAY?</h2>
@@ -64,20 +75,84 @@
                 </p>
 
                 <button id="start-btn">START GAME</button>
+
+                <small>Camera access required</small>
+
+            </div>
+
+            <!-- READY SCREEN -->
+            <div class="ready-screen" id="ready-screen">
+
+                <div class="hand-status">✋</div>
+
+                <h2 id="ready-title">SET YOUR HAND</h2>
+
+                <p id="ready-text">
+                    Show your hand clearly to the camera
+                </p>
+
+                <div id="countdown"></div>
+
+            </div>
+
+            <!-- PAUSE SCREEN -->
+            <div class="pause-screen" id="pause-screen">
+
+                <div class="pause-icon">⏸</div>
+
+                <h2>GAME PAUSED</h2>
+
+                <p>Take a breath. Your game is waiting.</p>
+
+                <button id="resume-btn">▶ RESUME</button>
+
+                <p class="shortcut">Press P to resume</p>
+
+            </div>
+
+            <!-- GAME OVER -->
+            <div class="game-over-screen" id="game-over-screen">
+
+                <div class="game-over-icon">💥</div>
+
+                <h2>GAME OVER</h2>
+
+                <p>Your Score</p>
+
+                <h3 id="final-score">0</h3>
+
+                <button id="restart-btn">PLAY AGAIN</button>
+
             </div>
 
         </main>
 
+        <!-- CONTROLS -->
         <div class="instructions">
-            <div>✋ <span>Move your hand</span></div>
-            <div>🏀 <span>Juggle the ball</span></div>
-            <div>🔥 <span>Beat your score</span></div>
+
+            <div class="instruction-item">
+                <span>✋</span>
+                <p>Move your hand</p>
+            </div>
+
+            <div class="instruction-item">
+                <span>🏀</span>
+                <p>Keep ball alive</p>
+            </div>
+
+            <div class="instruction-item">
+                <span>🔥</span>
+                <p>Beat your score</p>
+            </div>
+
+            <div class="instruction-item keyboard">
+                <span>⌨️</span>
+                <p>P = Pause</p>
+            </div>
+
         </div>
 
     </div>
 
-    <script src="script.js"></script>
-
 </body>
-
 </html>
