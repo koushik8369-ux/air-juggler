@@ -88,26 +88,8 @@ body {
     height: 500px;
     border: 2px solid rgba(0, 229, 255, 0.35);
     border-radius: 20px;
-    background:
-        radial-gradient(circle at center, rgba(0, 229, 255, 0.08), transparent 60%),
-        #0c1120;
+    background: #0c1120;
     overflow: hidden;
-    box-shadow:
-        0 0 30px rgba(0, 229, 255, 0.12),
-        inset 0 0 40px rgba(0, 0, 0, 0.5);
-}
-
-/* Grid Effect */
-.game-area::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    pointer-events: none;
-    background-image:
-        linear-gradient(rgba(0, 229, 255, 0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 229, 255, 0.05) 1px, transparent 1px);
-    background-size: 40px 40px;
 }
 
 /* Webcam */
@@ -119,11 +101,22 @@ body {
     transform: scaleX(-1);
 }
 
+/* Canvas Overlay */
+#output-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: none;
+    transform: scaleX(-1);
+    pointer-events: none;
+}
+
 /* Start Screen */
 .start-screen {
     position: absolute;
     inset: 0;
-    z-index: 2;
+    z-index: 3;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -185,7 +178,6 @@ body {
     gap: 8px;
 }
 
-/* Animation */
 @keyframes floatBall {
     0%, 100% {
         transform: translateY(0);
@@ -196,7 +188,6 @@ body {
     }
 }
 
-/* Responsive */
 @media (max-width: 600px) {
     .game-container {
         padding: 15px;
