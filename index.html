@@ -9,9 +9,12 @@
 
     <link rel="stylesheet" href="style.css">
 
+    <!-- TensorFlow.js -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+
+    <!-- Hand Pose Detection -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands"></script>
 </head>
@@ -46,11 +49,13 @@
 
             <canvas id="output-canvas"></canvas>
 
-            <!-- Hand Controlled Paddle -->
+            <div id="ball"></div>
+
             <div id="paddle"></div>
 
             <div class="start-screen" id="start-screen">
                 <div class="ball-icon">🏀</div>
+
                 <h2>READY TO PLAY?</h2>
 
                 <p>

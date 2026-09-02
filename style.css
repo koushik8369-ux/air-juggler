@@ -108,7 +108,20 @@ body {
     z-index: 2;
 }
 
-/* Hand Controlled Paddle */
+/* Ball */
+#ball {
+    position: absolute;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #ffffff, #ff7a00 35%, #e63900 75%);
+    box-shadow:
+        0 0 15px rgba(255, 122, 0, 0.9),
+        0 0 30px rgba(255, 60, 0, 0.5);
+    z-index: 4;
+}
+
+/* Paddle */
 #paddle {
     position: absolute;
     bottom: 30px;
@@ -200,7 +213,6 @@ body {
 }
 
 @media (max-width: 600px) {
-
     .game-container {
         padding: 15px;
     }
