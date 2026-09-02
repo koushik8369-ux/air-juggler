@@ -3,6 +3,8 @@ const startScreen = document.getElementById("start-screen");
 const webcam = document.getElementById("webcam");
 const canvas = document.getElementById("output-canvas");
 const ctx = canvas.getContext("2d");
+const paddle = document.getElementById("paddle");
+const gameArea = document.querySelector(".game-area");
 
 let detector = null;
 
@@ -63,16 +65,46 @@ async function detectHands() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         hands.forEach(hand => {
-            hand.keypoints.forEach(point => {
-                ctx.beginPath();
-                ctx.arc(point.x, point.y, 7, 0, 2 * Math.PI);
-                ctx.fillStyle = "#00e5ff";
-                ctx.fill();
-            });
+            drawHandLandmarks(hand);
+            movePaddle(hand);
         });
 
         requestAnimationFrame(render);
     }
 
     render();
+}
+
+function drawHandLandmarks(hand) {
+    hand.keypoints.forEach(point => {
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, 7, 0, 2 * Math.PI);
+        ctx.fillStyle = "#00e5ff";
+        ctx.fill();
+    });
+}
+
+function movePaddle(hand) {
+    const indexFingerTip = hand.keypoints[8];
+
+    const handX = indexFingerTip.x;
+    const videoWidth = webcam.videoWidth;
+    const gameWidth = gameArea.clientWidth;
+
+    // Mirror the coordinate because the webcam is flipped
+    const mirroredX = videoWidth - handX;
+
+    // Convert hand position to percentage
+    const percentage = mirroredX / videoWidth;
+
+    // Keep paddle inside game boundaries
+    const paddleHalfWidth = paddle.offsetWidth / 2;
+    let paddleX = percentage * gameWidth;
+
+    paddleX = Math.max(
+        paddleHalfWidth,
+        Math.min(gameWidth - paddleHalfWidth, paddleX)
+    );
+
+    paddle.style.left = `${paddleX}px`;
 }

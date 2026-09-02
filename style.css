@@ -23,7 +23,6 @@ body {
     padding: 25px;
 }
 
-/* Header */
 .header {
     text-align: center;
     margin-bottom: 25px;
@@ -53,7 +52,6 @@ body {
     letter-spacing: 3px;
 }
 
-/* Score Board */
 .score-board {
     display: flex;
     justify-content: center;
@@ -82,7 +80,6 @@ body {
     color: #00e5ff;
 }
 
-/* Game Area */
 .game-area {
     position: relative;
     height: 500px;
@@ -92,7 +89,6 @@ body {
     overflow: hidden;
 }
 
-/* Webcam */
 #webcam {
     width: 100%;
     height: 100%;
@@ -101,7 +97,6 @@ body {
     transform: scaleX(-1);
 }
 
-/* Canvas Overlay */
 #output-canvas {
     position: absolute;
     inset: 0;
@@ -110,13 +105,30 @@ body {
     display: none;
     transform: scaleX(-1);
     pointer-events: none;
+    z-index: 2;
 }
 
-/* Start Screen */
+/* Hand Controlled Paddle */
+#paddle {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    width: 140px;
+    height: 18px;
+    border-radius: 20px;
+    background: linear-gradient(90deg, #00e5ff, #7c4dff);
+    box-shadow:
+        0 0 15px #00e5ff,
+        0 0 30px rgba(124, 77, 255, 0.7);
+    transform: translateX(-50%);
+    transition: left 0.08s linear;
+    z-index: 3;
+}
+
 .start-screen {
     position: absolute;
     inset: 0;
-    z-index: 3;
+    z-index: 5;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -161,7 +173,6 @@ body {
     box-shadow: 0 0 25px rgba(0, 229, 255, 0.7);
 }
 
-/* Instructions */
 .instructions {
     display: flex;
     justify-content: center;
@@ -189,6 +200,7 @@ body {
 }
 
 @media (max-width: 600px) {
+
     .game-container {
         padding: 15px;
     }
@@ -199,6 +211,10 @@ body {
 
     .score-card {
         width: 130px;
+    }
+
+    #paddle {
+        width: 110px;
     }
 
     .instructions {
