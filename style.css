@@ -68,7 +68,6 @@ body {
     border: 1px solid rgba(0, 229, 255, 0.3);
     border-radius: 12px;
     background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(10px);
 }
 
 .score-card span {
@@ -103,10 +102,21 @@ body {
     content: "";
     position: absolute;
     inset: 0;
+    z-index: 1;
+    pointer-events: none;
     background-image:
         linear-gradient(rgba(0, 229, 255, 0.05) 1px, transparent 1px),
         linear-gradient(90deg, rgba(0, 229, 255, 0.05) 1px, transparent 1px);
     background-size: 40px 40px;
+}
+
+/* Webcam */
+#webcam {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: none;
+    transform: scaleX(-1);
 }
 
 /* Start Screen */
@@ -188,7 +198,6 @@ body {
 
 /* Responsive */
 @media (max-width: 600px) {
-
     .game-container {
         padding: 15px;
     }
