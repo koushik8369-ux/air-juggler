@@ -3,12 +3,14 @@
 
 <head>
     <meta charset="UTF-8">
+
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
     <title>Air Juggler | Gesture Controlled Game</title>
 
     <link rel="stylesheet" href="style.css">
+
     <script type="module" src="script.js"></script>
 </head>
 
@@ -16,14 +18,18 @@
 
     <div class="game-container">
 
+        <!-- HEADER -->
         <header class="header">
+
             <div class="logo">
                 <span class="logo-icon">✋</span>
                 <h1>AIR JUGGLER</h1>
             </div>
 
             <p>GESTURE CONTROLLED GAME</p>
+
         </header>
+
 
         <!-- SCORE BOARD -->
         <div class="score-board">
@@ -40,52 +46,100 @@
 
             <div class="score-card difficulty-card">
                 <span>LEVEL</span>
-                <h2 id="difficulty" class="difficulty-easy">EASY</h2>
+                <h2 id="difficulty" class="difficulty-easy">
+                    EASY
+                </h2>
             </div>
 
         </div>
 
-        <!-- GAME AREA -->
-        <main class="game-area">
 
-            <video id="webcam" autoplay playsinline></video>
+        <!-- GAME AREA -->
+        <main class="game-area" id="game-area">
+
+            <!-- CAMERA -->
+            <video
+                id="webcam"
+                autoplay
+                playsinline>
+            </video>
+
+
+            <!-- AI DETECTION OVERLAY -->
             <canvas id="output-canvas"></canvas>
 
+
+            <!-- EFFECT LAYERS -->
             <div id="particles-container"></div>
+
+            <div id="ball-trail"></div>
+
             <div id="combo-text"></div>
 
+            <div id="hit-flash"></div>
+
+            <!-- NEW LEVEL UP EFFECT -->
+            <div id="level-up-text">
+                <span class="level-up-small">LEVEL UP!</span>
+                <span id="level-up-name">MEDIUM</span>
+            </div>
+
+
+            <!-- GAME OBJECTS -->
             <div id="ball"></div>
+
             <div id="paddle"></div>
 
-            <!-- PAUSE -->
-            <button id="pause-btn" class="pause-btn" title="Pause Game">
+
+            <!-- PAUSE BUTTON -->
+            <button
+                id="pause-btn"
+                class="pause-btn"
+                title="Pause Game">
+
                 ⏸
+
             </button>
 
+
             <!-- START SCREEN -->
-            <div class="start-screen" id="start-screen">
+            <div
+                class="start-screen"
+                id="start-screen">
 
                 <div class="ball-icon">🏀</div>
 
                 <h2>READY TO PLAY?</h2>
 
                 <p>
-                    Move your hand to control the paddle.<br>
+                    Move your hand to control the paddle.
+                    <br>
                     Keep the ball in the air!
                 </p>
 
-                <button id="start-btn">START GAME</button>
+                <button id="start-btn">
+                    START GAME
+                </button>
 
-                <small>Camera access required</small>
+                <small>
+                    Camera access required
+                </small>
 
             </div>
 
+
             <!-- READY SCREEN -->
-            <div class="ready-screen" id="ready-screen">
+            <div
+                class="ready-screen"
+                id="ready-screen">
 
-                <div class="hand-status">✋</div>
+                <div class="hand-status">
+                    ✋
+                </div>
 
-                <h2 id="ready-title">SET YOUR HAND</h2>
+                <h2 id="ready-title">
+                    SET YOUR HAND
+                </h2>
 
                 <p id="ready-text">
                     Show your hand clearly to the camera
@@ -95,37 +149,58 @@
 
             </div>
 
-            <!-- PAUSE SCREEN -->
-            <div class="pause-screen" id="pause-screen">
 
-                <div class="pause-icon">⏸</div>
+            <!-- PAUSE SCREEN -->
+            <div
+                class="pause-screen"
+                id="pause-screen">
+
+                <div class="pause-icon">
+                    ⏸
+                </div>
 
                 <h2>GAME PAUSED</h2>
 
-                <p>Take a breath. Your game is waiting.</p>
+                <p>
+                    Take a breath. Your game is waiting.
+                </p>
 
-                <button id="resume-btn">▶ RESUME</button>
+                <button id="resume-btn">
+                    ▶ RESUME
+                </button>
 
-                <p class="shortcut">Press P to resume</p>
+                <p class="shortcut">
+                    Press P to resume
+                </p>
 
             </div>
 
-            <!-- GAME OVER -->
-            <div class="game-over-screen" id="game-over-screen">
 
-                <div class="game-over-icon">💥</div>
+            <!-- GAME OVER SCREEN -->
+            <div
+                class="game-over-screen"
+                id="game-over-screen">
+
+                <div class="game-over-icon">
+                    💥
+                </div>
 
                 <h2>GAME OVER</h2>
 
                 <p>Your Score</p>
 
-                <h3 id="final-score">0</h3>
+                <h3 id="final-score">
+                    0
+                </h3>
 
-                <button id="restart-btn">PLAY AGAIN</button>
+                <button id="restart-btn">
+                    PLAY AGAIN
+                </button>
 
             </div>
 
         </main>
+
 
         <!-- CONTROLS -->
         <div class="instructions">
@@ -141,8 +216,8 @@
             </div>
 
             <div class="instruction-item">
-                <span>🔥</span>
-                <p>Beat your score</p>
+                <span>🧠</span>
+                <p>Use head save</p>
             </div>
 
             <div class="instruction-item keyboard">
@@ -155,4 +230,5 @@
     </div>
 
 </body>
+
 </html>

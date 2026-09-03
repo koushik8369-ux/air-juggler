@@ -26,10 +26,12 @@ const ctx = canvas.getContext("2d");
 
 const paddle = document.getElementById("paddle");
 const ball = document.getElementById("ball");
-const gameArea = document.querySelector(".game-area");
+const gameArea = document.getElementById("game-area");
 
 const particlesContainer = document.getElementById("particles-container");
 const comboText = document.getElementById("combo-text");
+const ballTrail = document.getElementById("ball-trail");
+const hitFlash = document.getElementById("hit-flash");
 
 const scoreElement = document.getElementById("score");
 const highScoreElement = document.getElementById("high-score");
@@ -42,7 +44,9 @@ let audioContext = null;
 
 function initAudio() {
     if (!audioContext) {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        audioContext = new (
+            window.AudioContext || window.webkitAudioContext
+        )();
     }
 
     if (audioContext.state === "suspended") {
@@ -57,9 +61,16 @@ function playTone(frequency, duration, type = "sine", volume = 0.15) {
     const gainNode = audioContext.createGain();
 
     oscillator.type = type;
-    oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+    oscillator.frequency.setValueAtTime(
+        frequency,
+        audioContext.currentTime
+    );
 
-    gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+    gainNode.gain.setValueAtTime(
+        volume,
+        audioContext.currentTime
+    );
+
     gainNode.gain.exponentialRampToValueAtTime(
         0.001,
         audioContext.currentTime + duration
@@ -74,12 +85,30 @@ function playTone(frequency, duration, type = "sine", volume = 0.15) {
 
 function playHitSound() {
     playTone(320, 0.08, "sine", 0.18);
-    setTimeout(() => playTone(520, 0.06, "sine", 0.1), 40);
+
+    setTimeout(() => {
+        playTone(520, 0.06, "sine", 0.1);
+    }, 40);
 }
 
 function playHeadSound() {
     playTone(700, 0.08, "square", 0.14);
-    setTimeout(() => playTone(950, 0.15, "sine", 0.16), 70);
+
+    setTimeout(() => {
+        playTone(950, 0.15, "sine", 0.16);
+    }, 70);
+}
+
+function playLevelUpSound() {
+    playTone(440, 0.1, "sine", 0.12);
+
+    setTimeout(() => {
+        playTone(660, 0.1, "sine", 0.14);
+    }, 100);
+
+    setTimeout(() => {
+        playTone(880, 0.2, "sine", 0.18);
+    }, 200);
 }
 
 function playGameOverSound() {
@@ -89,13 +118,22 @@ function playGameOverSound() {
     const gainNode = audioContext.createGain();
 
     oscillator.type = "sawtooth";
-    oscillator.frequency.setValueAtTime(300, audioContext.currentTime);
+
+    oscillator.frequency.setValueAtTime(
+        300,
+        audioContext.currentTime
+    );
+
     oscillator.frequency.exponentialRampToValueAtTime(
         80,
         audioContext.currentTime + 0.5
     );
 
-    gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+    gainNode.gain.setValueAtTime(
+        0.15,
+        audioContext.currentTime
+    );
+
     gainNode.gain.exponentialRampToValueAtTime(
         0.001,
         audioContext.currentTime + 0.5
@@ -108,7 +146,7 @@ function playGameOverSound() {
     oscillator.stop(audioContext.currentTime + 0.5);
 }
 
-// ================= AI =================
+// ================= AI TRACKING =================
 
 let handLandmarker;
 let faceLandmarker;
@@ -139,40 +177,144 @@ let gamePaused = false;
 let animationFrameId = null;
 
 let score = 0;
+let currentLevel = 1;
+let lastFrameTime = 0;
 
 let highScore =
     Number(localStorage.getItem("airJugglerHighScore")) || 0;
 
 highScoreElement.textContent = highScore;
 
+// ================= LEVEL SYSTEM =================
+
+const levels = [
+    {
+        level: 1,
+        name: "EASY",
+        minScore: 0,
+        gravity: 0.28,
+        bounce: 9,
+        multiplier: 1,
+        className: "difficulty-easy"
+    },
+    {
+        level: 2,
+        name: "MEDIUM",
+        minScore: 6,
+        gravity: 0.36,
+        bounce: 11,
+        multiplier: 1.3,
+        className: "difficulty-medium"
+    },
+    {
+        level: 3,
+        name: "HARD",
+        minScore: 16,
+        gravity: 0.46,
+        bounce: 13,
+        multiplier: 1.65,
+        className: "difficulty-hard"
+    },
+    {
+        level: 4,
+        name: "INSANE",
+        minScore: 31,
+        gravity: 0.58,
+        bounce: 15,
+        multiplier: 2.05,
+        className: "difficulty-insane"
+    }
+];
+
+function getLevelFromScore() {
+    let selectedLevel = levels[0];
+
+    for (const level of levels) {
+        if (score >= level.minScore) {
+            selectedLevel = level;
+        }
+    }
+
+    return selectedLevel;
+}
+
+function updateLevel() {
+    const levelData = getLevelFromScore();
+
+    if (levelData.level !== currentLevel) {
+        currentLevel = levelData.level;
+
+        playLevelUpSound();
+
+        showLevelUp(levelData);
+
+        createParticles(
+            gameArea.clientWidth / 2,
+            gameArea.clientHeight / 2,
+            "#ffd000",
+            40
+        );
+    }
+
+    difficultyElement.textContent = levelData.name;
+    difficultyElement.className = levelData.className;
+
+    if (score >= 5) {
+        paddle.classList.add("power");
+    } else {
+        paddle.classList.remove("power");
+    }
+}
+
+function showLevelUp(levelData) {
+    const levelMessage = document.createElement("div");
+
+    levelMessage.className = "level-up-message";
+
+    levelMessage.innerHTML = `
+        <div>LEVEL ${levelData.level}</div>
+        <span>${levelData.name}</span>
+    `;
+
+    gameArea.appendChild(levelMessage);
+
+    setTimeout(() => {
+        levelMessage.remove();
+    }, 1600);
+}
+
 // ================= BALL =================
-
-const gravity = 0.25;
-const baseBounceStrength = 9;
-const maxBounceStrength = 15;
-
-const baseHorizontalSpeed = 3;
-const maxHorizontalSpeed = 10;
 
 let ballX = 0;
 let ballY = 0;
+
 let ballVelocityX = 0;
 let ballVelocityY = 0;
 
 let lastHitTime = 0;
-const collisionCooldown = 120;
+const collisionCooldown = 140;
+
+let lastTrailTime = 0;
 
 // ================= VIDEO MAPPING =================
 
 function getVideoMapping() {
-
     const videoWidth = webcam.videoWidth;
     const videoHeight = webcam.videoHeight;
 
     const displayWidth = gameArea.clientWidth;
     const displayHeight = gameArea.clientHeight;
 
-    // Same calculation as CSS object-fit: cover
+    if (!videoWidth || !videoHeight) {
+        return {
+            scale: 1,
+            offsetX: 0,
+            offsetY: 0,
+            displayWidth,
+            displayHeight
+        };
+    }
+
     const scale = Math.max(
         displayWidth / videoWidth,
         displayHeight / videoHeight
@@ -196,30 +338,19 @@ function getVideoMapping() {
     };
 }
 
-// Convert normalized MediaPipe landmark
-// into displayed GAME AREA coordinates
-
 function landmarkToScreen(point) {
-
     const map = getVideoMapping();
 
-    const videoX =
-        point.x * webcam.videoWidth;
-
-    const videoY =
-        point.y * webcam.videoHeight;
+    const videoX = point.x * webcam.videoWidth;
+    const videoY = point.y * webcam.videoHeight;
 
     let screenX =
-        videoX * map.scale +
-        map.offsetX;
+        videoX * map.scale + map.offsetX;
 
-    let screenY =
-        videoY * map.scale +
-        map.offsetY;
+    const screenY =
+        videoY * map.scale + map.offsetY;
 
-    // Mirror because webcam is mirrored
-    screenX =
-        map.displayWidth - screenX;
+    screenX = map.displayWidth - screenX;
 
     return {
         x: screenX,
@@ -242,7 +373,7 @@ restartButton.addEventListener("click", () => {
 pauseButton.addEventListener("click", togglePause);
 resumeButton.addEventListener("click", resumeGame);
 
-document.addEventListener("keydown", (event) => {
+document.addEventListener("keydown", event => {
     if (event.key.toLowerCase() === "p") {
         togglePause();
     }
@@ -253,7 +384,6 @@ window.addEventListener("resize", handleResize);
 // ================= START =================
 
 async function startPreparation() {
-
     gameRunning = false;
     gamePaused = false;
 
@@ -269,9 +399,10 @@ async function startPreparation() {
     pauseButton.style.display = "none";
 
     readyTitle.textContent = "SET YOUR HAND";
-    readyText.textContent = "Show your hand clearly to the camera";
-    countdownElement.textContent = "";
+    readyText.textContent =
+        "Show your hand clearly to the camera";
 
+    countdownElement.textContent = "";
     countdownStarted = false;
 
     resetGame();
@@ -292,6 +423,7 @@ async function startPreparation() {
             console.error(error);
 
             alert("Camera or AI tracking failed.");
+
             startScreen.style.display = "flex";
             readyScreen.style.display = "none";
         }
@@ -301,7 +433,6 @@ async function startPreparation() {
 // ================= CAMERA =================
 
 async function setupCamera() {
-
     const stream =
         await navigator.mediaDevices.getUserMedia({
             video: {
@@ -323,15 +454,12 @@ async function setupCamera() {
     webcam.style.display = "block";
     canvas.style.display = "block";
 
-    // Canvas uses GAME AREA coordinate system
-    canvas.width = gameArea.clientWidth;
-    canvas.height = gameArea.clientHeight;
+    handleResize();
 }
 
 // ================= AI MODELS =================
 
 async function setupAITracking() {
-
     const vision =
         await FilesetResolver.forVisionTasks(
             "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
@@ -350,8 +478,8 @@ async function setupAITracking() {
                 runningMode: "VIDEO",
                 numHands: 1,
 
-                minHandDetectionConfidence: 0.6,
-                minHandPresenceConfidence: 0.6,
+                minHandDetectionConfidence: 0.65,
+                minHandPresenceConfidence: 0.65,
                 minTrackingConfidence: 0.7
             }
         );
@@ -372,17 +500,14 @@ async function setupAITracking() {
         );
 }
 
-// ================= DETECTION =================
+// ================= DETECTION LOOP =================
 
 function detectTracking() {
-
     function predict() {
-
         if (
             webcam.readyState >= 2 &&
             lastVideoTime !== webcam.currentTime
         ) {
-
             lastVideoTime = webcam.currentTime;
 
             ctx.clearRect(
@@ -392,10 +517,7 @@ function detectTracking() {
                 canvas.height
             );
 
-            // HAND
-
             if (handLandmarker) {
-
                 const handResults =
                     handLandmarker.detectForVideo(
                         webcam,
@@ -403,7 +525,6 @@ function detectTracking() {
                     );
 
                 if (handResults.landmarks?.length > 0) {
-
                     const landmarks =
                         handResults.landmarks[0];
 
@@ -425,18 +546,16 @@ function detectTracking() {
                 }
             }
 
-            // FACE
-
             if (faceLandmarker) {
-
                 const faceResults =
                     faceLandmarker.detectForVideo(
                         webcam,
                         performance.now()
                     );
 
-                if (faceResults.faceLandmarks?.length > 0) {
-
+                if (
+                    faceResults.faceLandmarks?.length > 0
+                ) {
                     headDetected = true;
 
                     const face =
@@ -460,23 +579,22 @@ function detectTracking() {
 // ================= HAND DRAW =================
 
 function drawHandSkeleton(landmarks) {
-
     const connections = [
-        [0,1],[1,2],[2,3],[3,4],
-        [0,5],[5,6],[6,7],[7,8],
-        [0,9],[9,10],[10,11],[11,12],
-        [0,13],[13,14],[14,15],[15,16],
-        [0,17],[17,18],[18,19],[19,20],
-        [5,9],[9,13],[13,17]
+        [0, 1], [1, 2], [2, 3], [3, 4],
+        [0, 5], [5, 6], [6, 7], [7, 8],
+        [0, 9], [9, 10], [10, 11], [11, 12],
+        [0, 13], [13, 14], [14, 15], [15, 16],
+        [0, 17], [17, 18], [18, 19], [19, 20],
+        [5, 9], [9, 13], [13, 17]
     ];
 
     ctx.strokeStyle = "#00e5ff";
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 3;
+
     ctx.shadowColor = "#00e5ff";
-    ctx.shadowBlur = 12;
+    ctx.shadowBlur = 10;
 
     connections.forEach(([a, b]) => {
-
         const p1 =
             landmarkToScreen(landmarks[a]);
 
@@ -484,20 +602,17 @@ function drawHandSkeleton(landmarks) {
             landmarkToScreen(landmarks[b]);
 
         ctx.beginPath();
-
         ctx.moveTo(p1.x, p1.y);
         ctx.lineTo(p2.x, p2.y);
-
         ctx.stroke();
     });
 
     ctx.shadowBlur = 0;
 }
 
-// ================= HEAD DATA =================
+// ================= HEAD =================
 
 function updateHeadData(face) {
-
     const left =
         landmarkToScreen(face[234]);
 
@@ -523,32 +638,30 @@ function updateHeadData(face) {
         Math.abs(bottom.y - top.y);
 
     headRadius =
-        Math.max(faceWidth, faceHeight) * 0.5;
+        Math.max(faceWidth, faceHeight) * 0.48;
 }
 
-// ================= HEAD DRAW =================
-
 function drawHeadOutline(face) {
-
     const oval = [
-        10,338,297,332,284,251,
-        389,356,454,323,361,
-        288,397,365,379,378,
-        400,377,152,148,176,
-        149,150,136,172,58,
-        132,93,234,127,162,
-        21,54,103,67,109,10
+        10, 338, 297, 332, 284,
+        251, 389, 356, 454, 323,
+        361, 288, 397, 365, 379,
+        378, 400, 377, 152, 148,
+        176, 149, 150, 136, 172,
+        58, 132, 93, 234, 127,
+        162, 21, 54, 103, 67,
+        109, 10
     ];
 
     ctx.strokeStyle = "#a855f7";
     ctx.lineWidth = 3;
+
     ctx.shadowColor = "#a855f7";
-    ctx.shadowBlur = 15;
+    ctx.shadowBlur = 12;
 
     ctx.beginPath();
 
     oval.forEach((index, i) => {
-
         const point =
             landmarkToScreen(face[index]);
 
@@ -559,22 +672,29 @@ function drawHeadOutline(face) {
         }
     });
 
+    ctx.closePath();
     ctx.stroke();
+
     ctx.shadowBlur = 0;
 }
 
-// ================= PADDLE =================
+// ================= PADDLE CONTROL =================
 
 function controlPaddle(landmarks) {
-
     const wrist =
         landmarkToScreen(landmarks[0]);
 
+    const middleBase =
+        landmarkToScreen(landmarks[9]);
+
+    const targetX =
+        (wrist.x + middleBase.x) / 2;
+
     if (smoothX === null) {
-        smoothX = wrist.x;
+        smoothX = targetX;
     } else {
         smoothX +=
-            (wrist.x - smoothX) *
+            (targetX - smoothX) *
             smoothingFactor;
     }
 
@@ -584,15 +704,17 @@ function controlPaddle(landmarks) {
     const gameWidth =
         gameArea.clientWidth;
 
-    let paddleX = smoothX;
+    const minX =
+        paddleWidth / 2;
 
-    paddleX = Math.max(
-        paddleWidth / 2,
-        Math.min(
-            gameWidth - paddleWidth / 2,
-            paddleX
-        )
-    );
+    const maxX =
+        gameWidth - paddleWidth / 2;
+
+    const paddleX =
+        Math.max(
+            minX,
+            Math.min(maxX, smoothX)
+        );
 
     paddle.style.left = `${paddleX}px`;
 }
@@ -600,7 +722,6 @@ function controlPaddle(landmarks) {
 // ================= COUNTDOWN =================
 
 function startCountdown() {
-
     readyTitle.textContent =
         "HAND DETECTED ✓";
 
@@ -612,52 +733,41 @@ function startCountdown() {
     countdownElement.textContent = count;
 
     const interval = setInterval(() => {
-
         count--;
 
         if (count > 0) {
-
-            countdownElement.textContent =
-                count;
-
+            countdownElement.textContent = count;
         } else {
-
             clearInterval(interval);
 
-            countdownElement.textContent =
-                "GO!";
+            countdownElement.textContent = "GO!";
 
             setTimeout(() => {
-
-                readyScreen.style.display =
-                    "none";
-
+                readyScreen.style.display = "none";
                 startActualGame();
-
-            }, 700);
+            }, 650);
         }
-
     }, 1000);
 }
 
 // ================= GAME START =================
 
 function startActualGame() {
-
     resetGame();
 
     gameRunning = true;
     gamePaused = false;
 
+    lastFrameTime = performance.now();
+
     pauseButton.style.display = "block";
 
-    updateGame();
+    updateGame(lastFrameTime);
 }
 
 // ================= PAUSE =================
 
 function togglePause() {
-
     if (!gameRunning) return;
 
     if (gamePaused) {
@@ -668,7 +778,6 @@ function togglePause() {
 }
 
 function pauseGame() {
-
     if (!gameRunning) return;
 
     gamePaused = true;
@@ -680,7 +789,6 @@ function pauseGame() {
 }
 
 function resumeGame() {
-
     if (!gamePaused) return;
 
     gamePaused = false;
@@ -688,14 +796,17 @@ function resumeGame() {
     pauseScreen.style.display = "none";
     pauseButton.innerHTML = "⏸";
 
-    updateGame();
+    lastFrameTime = performance.now();
+
+    updateGame(lastFrameTime);
 }
 
 // ================= RESET =================
 
 function resetGame() {
-
     score = 0;
+    currentLevel = 1;
+
     scoreElement.textContent = score;
 
     difficultyElement.textContent = "EASY";
@@ -703,54 +814,52 @@ function resetGame() {
         "difficulty-easy";
 
     smoothX = null;
+
     lastHitTime = 0;
     lastHeadHitTime = 0;
+    lastTrailTime = 0;
+
+    paddle.classList.remove("power");
 
     ballX =
         gameArea.clientWidth / 2 -
         ball.offsetWidth / 2;
 
-    ballY = 60;
+    ballY = 70;
 
     ballVelocityX =
-        Math.random() > 0.5
-            ? baseHorizontalSpeed
-            : -baseHorizontalSpeed;
+        Math.random() > 0.5 ? 3.5 : -3.5;
 
     ballVelocityY = 1;
 
     ball.style.left = `${ballX}px`;
     ball.style.top = `${ballY}px`;
+
+    if (ballTrail) {
+        ballTrail.innerHTML = "";
+    }
 }
 
-// ================= DIFFICULTY =================
+// ================= SCORE =================
 
-function updateDifficulty() {
+function addScore(points) {
+    score += points;
 
-    if (score <= 5) {
-        difficultyElement.textContent = "EASY";
-        difficultyElement.className = "difficulty-easy";
+    scoreElement.textContent = score;
 
-    } else if (score <= 15) {
-        difficultyElement.textContent = "MEDIUM";
-        difficultyElement.className = "difficulty-medium";
-
-    } else if (score <= 30) {
-        difficultyElement.textContent = "HARD";
-        difficultyElement.className = "difficulty-hard";
-
-    } else {
-        difficultyElement.textContent = "INSANE";
-        difficultyElement.className = "difficulty-insane";
-    }
+    updateLevel();
+    updateHighScore();
 }
 
 // ================= PARTICLES =================
 
-function createParticles(x, y, color = "#00e5ff") {
-
-    for (let i = 0; i < 18; i++) {
-
+function createParticles(
+    x,
+    y,
+    color = "#00e5ff",
+    amount = 18
+) {
+    for (let i = 0; i < amount; i++) {
         const particle =
             document.createElement("div");
 
@@ -760,12 +869,13 @@ function createParticles(x, y, color = "#00e5ff") {
             Math.random() * Math.PI * 2;
 
         const distance =
-            40 + Math.random() * 70;
+            35 + Math.random() * 75;
 
         particle.style.left = `${x}px`;
         particle.style.top = `${y}px`;
 
         particle.style.background = color;
+
         particle.style.boxShadow =
             `0 0 10px ${color}`;
 
@@ -781,17 +891,15 @@ function createParticles(x, y, color = "#00e5ff") {
 
         particlesContainer.appendChild(particle);
 
-        setTimeout(
-            () => particle.remove(),
-            700
-        );
+        setTimeout(() => {
+            particle.remove();
+        }, 700);
     }
 }
 
 // ================= COMBO =================
 
 function showCombo(x, y, text = null) {
-
     if (!text && score < 2) return;
 
     comboText.textContent =
@@ -810,11 +918,80 @@ function showCombo(x, y, text = null) {
     comboText.classList.add("combo-show");
 }
 
+// ================= EFFECTS =================
+
+function triggerHitFlash() {
+    if (!hitFlash) return;
+
+    hitFlash.classList.remove("active");
+
+    void hitFlash.offsetWidth;
+
+    hitFlash.classList.add("active");
+}
+
+function triggerScreenShake() {
+    gameArea.classList.remove("shake");
+
+    void gameArea.offsetWidth;
+
+    gameArea.classList.add("shake");
+}
+
+function createTrail() {
+    if (!ballTrail) return;
+
+    const now = performance.now();
+
+    const speed =
+        Math.sqrt(
+            ballVelocityX * ballVelocityX +
+            ballVelocityY * ballVelocityY
+        );
+
+    const interval =
+        Math.max(18, 65 - speed * 2.5);
+
+    if (now - lastTrailTime < interval) return;
+
+    lastTrailTime = now;
+
+    const dot =
+        document.createElement("div");
+
+    dot.classList.add("trail-dot");
+
+    const ballCenterX =
+        ballX + ball.offsetWidth / 2;
+
+    const ballCenterY =
+        ballY + ball.offsetHeight / 2;
+
+    const size =
+        Math.min(30, 10 + speed * 1.3);
+
+    dot.style.width = `${size}px`;
+    dot.style.height = `${size}px`;
+    dot.style.left = `${ballCenterX}px`;
+    dot.style.top = `${ballCenterY}px`;
+
+    ballTrail.appendChild(dot);
+
+    setTimeout(() => {
+        dot.remove();
+    }, 450);
+}
+
 // ================= HEAD COLLISION =================
 
-function checkHeadCollision(ballWidth, ballHeight) {
-
-    if (!headDetected || !gameRunning) {
+function checkHeadCollision(
+    ballWidth,
+    ballHeight
+) {
+    if (
+        !headDetected ||
+        !gameRunning
+    ) {
         return false;
     }
 
@@ -834,58 +1011,68 @@ function checkHeadCollision(ballWidth, ballHeight) {
         ballCenterY - headCenterY;
 
     const distance =
-        Math.sqrt(dx * dx + dy * dy);
+        Math.sqrt(
+            dx * dx +
+            dy * dy
+        );
 
-    const now =
-        performance.now();
+    const now = performance.now();
 
     if (
-        distance < headRadius + ballRadius &&
+        distance <
+        headRadius + ballRadius &&
         ballVelocityY > 0 &&
         now - lastHeadHitTime >
-            headCollisionCooldown
+        headCollisionCooldown
     ) {
-
         lastHeadHitTime = now;
 
         ballY =
             headCenterY -
             headRadius -
             ballHeight -
-            5;
+            8;
 
-        ballVelocityY = -11;
+        const levelData =
+            getLevelFromScore();
 
-        ballVelocityX += dx * 0.025;
+        ballVelocityY =
+            -11 * levelData.multiplier;
 
-        ballVelocityX = Math.max(
-            -maxHorizontalSpeed,
-            Math.min(
-                maxHorizontalSpeed,
-                ballVelocityX
-            )
-        );
+        ballVelocityX += dx * 0.04;
 
-        score += 2;
+        const maxSpeed =
+            11 * levelData.multiplier;
 
-        scoreElement.textContent = score;
+        ballVelocityX =
+            Math.max(
+                -maxSpeed,
+                Math.min(
+                    maxSpeed,
+                    ballVelocityX
+                )
+            );
 
-        updateDifficulty();
+        addScore(2);
+
         playHeadSound();
+
+        triggerHitFlash();
+        triggerScreenShake();
 
         createParticles(
             headCenterX,
             headCenterY,
-            "#a855f7"
+            "#a855f7",
+            28
         );
 
         showCombo(
-            headCenterX - 80,
-            headCenterY - headRadius - 40,
+            headCenterX - 85,
+            headCenterY -
+            headRadius - 35,
             "🧠 HEAD SAVE! +2"
         );
-
-        updateHighScore();
 
         return true;
     }
@@ -896,9 +1083,7 @@ function checkHeadCollision(ballWidth, ballHeight) {
 // ================= HIGH SCORE =================
 
 function updateHighScore() {
-
     if (score > highScore) {
-
         highScore = score;
 
         highScoreElement.textContent =
@@ -913,9 +1098,15 @@ function updateHighScore() {
 
 // ================= GAME LOOP =================
 
-function updateGame() {
-
+function updateGame(timestamp) {
     if (!gameRunning || gamePaused) return;
+
+    let delta =
+        (timestamp - lastFrameTime) / 16.666;
+
+    lastFrameTime = timestamp;
+
+    delta = Math.min(delta, 2);
 
     const gameWidth =
         gameArea.clientWidth;
@@ -929,19 +1120,28 @@ function updateGame() {
     const ballHeight =
         ball.offsetHeight;
 
-    ballVelocityY += gravity;
+    const levelData =
+        getLevelFromScore();
 
-    ballX += ballVelocityX;
-    ballY += ballVelocityY;
+    // Physics changes noticeably at every level
+    ballVelocityY +=
+        levelData.gravity * delta;
 
-    // WALLS
+    ballX +=
+        ballVelocityX * delta;
 
+    ballY +=
+        ballVelocityY * delta;
+
+    // WALL COLLISION
     if (ballX <= 0) {
         ballX = 0;
-        ballVelocityX = Math.abs(ballVelocityX);
-    }
+        ballVelocityX =
+            Math.abs(ballVelocityX);
 
-    if (ballX + ballWidth >= gameWidth) {
+    } else if (
+        ballX + ballWidth >= gameWidth
+    ) {
         ballX =
             gameWidth - ballWidth;
 
@@ -950,22 +1150,20 @@ function updateGame() {
     }
 
     // CEILING
-
     if (ballY <= 0) {
         ballY = 0;
+
         ballVelocityY =
             Math.abs(ballVelocityY);
     }
 
-    // HEAD
-
+    // HEAD COLLISION
     checkHeadCollision(
         ballWidth,
         ballHeight
     );
 
-    // PADDLE
-
+    // PADDLE COLLISION
     const paddleRect =
         paddle.getBoundingClientRect();
 
@@ -973,13 +1171,16 @@ function updateGame() {
         gameArea.getBoundingClientRect();
 
     const paddleLeft =
-        paddleRect.left - gameRect.left;
+        paddleRect.left -
+        gameRect.left;
 
     const paddleTop =
-        paddleRect.top - gameRect.top;
+        paddleRect.top -
+        gameRect.top;
 
     const paddleRight =
-        paddleLeft + paddleRect.width;
+        paddleLeft +
+        paddleRect.width;
 
     const ballBottom =
         ballY + ballHeight;
@@ -988,7 +1189,8 @@ function updateGame() {
         ballX + ballWidth / 2;
 
     const previousBallBottom =
-        ballBottom - ballVelocityY;
+        ballBottom -
+        ballVelocityY * delta;
 
     const isFalling =
         ballVelocityY > 0;
@@ -1009,37 +1211,41 @@ function updateGame() {
         withinPaddle &&
         crossedPaddle &&
         now - lastHitTime >
-            collisionCooldown
+        collisionCooldown
     ) {
-
         lastHitTime = now;
 
         ballY =
             paddleTop - ballHeight;
 
-        score++;
+        addScore(1);
 
-        scoreElement.textContent = score;
+        const newLevelData =
+            getLevelFromScore();
 
-        updateDifficulty();
         playHitSound();
+        triggerHitFlash();
+
+        if (score >= 8) {
+            triggerScreenShake();
+        }
 
         createParticles(
             ballCenterX,
-            paddleTop
+            paddleTop,
+            "#00e5ff",
+            18
         );
 
         showCombo(
-            ballCenterX,
-            paddleTop - 30
+            ballCenterX - 20,
+            paddleTop - 35
         );
 
+        // Stronger and faster ball at higher levels
         const bounceStrength =
-            Math.min(
-                baseBounceStrength +
-                score * 0.3,
-                maxBounceStrength
-            );
+            newLevelData.bounce +
+            Math.min(score * 0.18, 4);
 
         ballVelocityY =
             -bounceStrength;
@@ -1052,32 +1258,40 @@ function updateGame() {
             (ballCenterX - paddleCenter) /
             (paddleRect.width / 2);
 
+        const horizontalPower =
+            7.5 *
+            newLevelData.multiplier;
+
         ballVelocityX =
             hitOffset *
-            maxHorizontalSpeed;
+            horizontalPower;
+
+        const minimumHorizontalSpeed =
+            2.2 *
+            newLevelData.multiplier;
 
         if (
-            Math.abs(ballVelocityX) < 1.8
+            Math.abs(ballVelocityX) <
+            minimumHorizontalSpeed
         ) {
             ballVelocityX =
                 ballVelocityX < 0
-                    ? -1.8
-                    : 1.8;
+                    ? -minimumHorizontalSpeed
+                    : minimumHorizontalSpeed;
         }
-
-        updateHighScore();
     }
 
     // GAME OVER
-
     if (ballY > gameHeight) {
-
         endGame();
         return;
     }
 
+    // DRAW BALL
     ball.style.left = `${ballX}px`;
     ball.style.top = `${ballY}px`;
+
+    createTrail();
 
     animationFrameId =
         requestAnimationFrame(updateGame);
@@ -1086,7 +1300,6 @@ function updateGame() {
 // ================= RESIZE =================
 
 function handleResize() {
-
     if (!cameraStarted) return;
 
     canvas.width =
@@ -1099,7 +1312,6 @@ function handleResize() {
 // ================= GAME OVER =================
 
 function endGame() {
-
     gameRunning = false;
     gamePaused = false;
 
