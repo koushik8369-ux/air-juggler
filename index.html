@@ -78,6 +78,8 @@
 
             <div id="hit-flash"></div>
 
+            <div id="tracking-status" role="status" aria-live="polite"></div>
+
             <!-- NEW LEVEL UP EFFECT -->
             <div id="level-up-text">
                 <span class="level-up-small">LEVEL UP!</span>
@@ -95,7 +97,8 @@
             <button
                 id="pause-btn"
                 class="pause-btn"
-                title="Pause Game">
+                title="Pause Game"
+                aria-label="Pause game">
 
                 ⏸
 
@@ -117,13 +120,19 @@
                     Keep the ball in the air!
                 </p>
 
-                <button id="start-btn">
+                <button id="start-btn" type="button">
                     START GAME
                 </button>
 
                 <small>
                     Camera access required
                 </small>
+
+                <p id="camera-error" class="camera-error" role="alert"></p>
+
+                <button id="retry-btn" class="retry-btn" type="button">
+                    RETRY CAMERA
+                </button>
 
             </div>
 
@@ -165,7 +174,7 @@
                     Take a breath. Your game is waiting.
                 </p>
 
-                <button id="resume-btn">
+                <button id="resume-btn" type="button" aria-label="Resume game">
                     ▶ RESUME
                 </button>
 
@@ -193,7 +202,11 @@
                     0
                 </h3>
 
-                <button id="restart-btn">
+                <p class="result-detail">Best: <strong id="final-best">0</strong></p>
+                <p class="result-detail">Level: <strong id="final-level">EASY</strong></p>
+                <p id="performance-message" class="performance-message"></p>
+
+                <button id="restart-btn" type="button">
                     PLAY AGAIN
                 </button>
 

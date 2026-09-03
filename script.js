@@ -32,11 +32,19 @@ const particlesContainer = document.getElementById("particles-container");
 const comboText = document.getElementById("combo-text");
 const ballTrail = document.getElementById("ball-trail");
 const hitFlash = document.getElementById("hit-flash");
+const trackingStatus = document.getElementById("tracking-status");
+const cameraError = document.getElementById("camera-error");
+const retryButton = document.getElementById("retry-btn");
+const levelUpText = document.getElementById("level-up-text");
+const levelUpName = document.getElementById("level-up-name");
 
 const scoreElement = document.getElementById("score");
 const highScoreElement = document.getElementById("high-score");
 const finalScoreElement = document.getElementById("final-score");
 const difficultyElement = document.getElementById("difficulty");
+const finalBestElement = document.getElementById("final-best");
+const finalLevelElement = document.getElementById("final-level");
+const performanceMessage = document.getElementById("performance-message");
 
 // ================= SOUND =================
 
@@ -156,7 +164,15 @@ let detectionLoopStarted = false;
 let lastVideoTime = -1;
 
 let countdownStarted = false;
+let countdownTimer = null;
+let countdownFinishTimer = null;
 let smoothX = null;
+let handLastSeenTime = 0;
+let levelUpInProgress = false;
+let gameLoopActive = false;
+let cameraSetupInProgress = false;
+
+const handWarningDelay = 3000;
 
 const smoothingFactor = 0.35;
 
@@ -267,20 +283,18 @@ function updateLevel() {
 }
 
 function showLevelUp(levelData) {
-    const levelMessage = document.createElement("div");
+    if (levelUpInProgress) return;
 
-    levelMessage.className = "level-up-message";
-
-    levelMessage.innerHTML = `
-        <div>LEVEL ${levelData.level}</div>
-        <span>${levelData.name}</span>
-    `;
-
-    gameArea.appendChild(levelMessage);
+    levelUpInProgress = true;
+    levelUpName.textContent = levelData.name;
+    levelUpText.classList.remove("show");
+    void levelUpText.offsetWidth;
+    levelUpText.classList.add("show");
 
     setTimeout(() => {
-        levelMessage.remove();
-    }, 1600);
+        levelUpText.classList.remove("show");
+        levelUpInProgress = false;
+    }, 1800);
 }
 
 // ================= BALL =================
@@ -295,6 +309,8 @@ let lastHitTime = 0;
 const collisionCooldown = 140;
 
 let lastTrailTime = 0;
+let lastNearMissTime = 0;
+const nearMissCooldown = 500;
 
 // ================= VIDEO MAPPING =================
 
@@ -372,9 +388,10 @@ restartButton.addEventListener("click", () => {
 
 pauseButton.addEventListener("click", togglePause);
 resumeButton.addEventListener("click", resumeGame);
+retryButton.addEventListener("click", startPreparation);
 
 document.addEventListener("keydown", event => {
-    if (event.key.toLowerCase() === "p") {
+    if (event.key.toLowerCase() === "p" || event.key === "Escape") {
         togglePause();
     }
 });
@@ -384,8 +401,11 @@ window.addEventListener("resize", handleResize);
 // ================= START =================
 
 async function startPreparation() {
+    clearCountdown();
     gameRunning = false;
     gamePaused = false;
+    cameraError.textContent = "";
+    retryButton.classList.remove("show");
 
     if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
@@ -407,7 +427,8 @@ async function startPreparation() {
 
     resetGame();
 
-    if (!cameraStarted) {
+    if (!cameraStarted && !cameraSetupInProgress) {
+        cameraSetupInProgress = true;
         try {
             await setupCamera();
             await setupAITracking();
@@ -422,10 +443,23 @@ async function startPreparation() {
         } catch (error) {
             console.error(error);
 
-            alert("Camera or AI tracking failed.");
+            cameraStarted = false;
+            stopCameraStream();
+            const message = error.name === "NotAllowedError"
+                ? "Camera permission was denied. Please allow camera access and try again."
+                : error.name === "NotFoundError"
+                    ? "No webcam was found. Connect a camera and try again."
+                    : error.message?.includes("AI_TRACKING")
+                        ? "AI tracking failed to load. Please check your internet connection."
+                        : "Camera access is required to play Air Juggler.";
+
+            cameraError.textContent = message;
+            retryButton.classList.add("show");
 
             startScreen.style.display = "flex";
             readyScreen.style.display = "none";
+        } finally {
+            cameraSetupInProgress = false;
         }
     }
 }
@@ -433,6 +467,12 @@ async function startPreparation() {
 // ================= CAMERA =================
 
 async function setupCamera() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+        const error = new Error("Camera unavailable");
+        error.name = "NotFoundError";
+        throw error;
+    }
+
     const stream =
         await navigator.mediaDevices.getUserMedia({
             video: {
@@ -457,6 +497,18 @@ async function setupCamera() {
     handleResize();
 }
 
+function stopCameraStream() {
+    const stream = webcam.srcObject;
+
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        webcam.srcObject = null;
+    }
+
+    webcam.style.display = "none";
+    canvas.style.display = "none";
+}
+
 // ================= AI MODELS =================
 
 async function setupAITracking() {
@@ -465,8 +517,9 @@ async function setupAITracking() {
             "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
         );
 
-    handLandmarker =
-        await HandLandmarker.createFromOptions(
+    try {
+        handLandmarker =
+            await HandLandmarker.createFromOptions(
             vision,
             {
                 baseOptions: {
@@ -482,10 +535,10 @@ async function setupAITracking() {
                 minHandPresenceConfidence: 0.65,
                 minTrackingConfidence: 0.7
             }
-        );
+            );
 
-    faceLandmarker =
-        await FaceLandmarker.createFromOptions(
+        faceLandmarker =
+            await FaceLandmarker.createFromOptions(
             vision,
             {
                 baseOptions: {
@@ -497,12 +550,20 @@ async function setupAITracking() {
                 runningMode: "VIDEO",
                 numFaces: 1
             }
-        );
+            );
+    } catch (error) {
+        error.message = `AI_TRACKING: ${error.message}`;
+        throw error;
+    }
 }
 
 // ================= DETECTION LOOP =================
 
 function detectTracking() {
+    if (detectionLoopStarted && animationFrameId === null) {
+        lastVideoTime = -1;
+    }
+
     function predict() {
         if (
             webcam.readyState >= 2 &&
@@ -529,6 +590,8 @@ function detectTracking() {
                         handResults.landmarks[0];
 
                     drawHandSkeleton(landmarks);
+                    handLastSeenTime = performance.now();
+                    setTrackingStatus("");
 
                     if (!gamePaused) {
                         controlPaddle(landmarks);
@@ -543,6 +606,13 @@ function detectTracking() {
                         countdownStarted = true;
                         startCountdown();
                     }
+                } else if (gameRunning && !gamePaused) {
+                    const handMissingFor = performance.now() - handLastSeenTime;
+                    setTrackingStatus(
+                        handMissingFor > handWarningDelay
+                            ? "HAND LOST - SHOW YOUR HAND"
+                            : "HAND LOST"
+                    );
                 }
             }
 
@@ -722,6 +792,8 @@ function controlPaddle(landmarks) {
 // ================= COUNTDOWN =================
 
 function startCountdown() {
+    clearCountdown();
+
     readyTitle.textContent =
         "HAND DETECTED ✓";
 
@@ -732,17 +804,17 @@ function startCountdown() {
 
     countdownElement.textContent = count;
 
-    const interval = setInterval(() => {
+    countdownTimer = setInterval(() => {
         count--;
 
         if (count > 0) {
             countdownElement.textContent = count;
         } else {
-            clearInterval(interval);
+            clearCountdown();
 
             countdownElement.textContent = "GO!";
 
-            setTimeout(() => {
+            countdownFinishTimer = setTimeout(() => {
                 readyScreen.style.display = "none";
                 startActualGame();
             }, 650);
@@ -750,9 +822,32 @@ function startCountdown() {
     }, 1000);
 }
 
+function clearCountdown() {
+    if (countdownTimer) {
+        clearInterval(countdownTimer);
+        countdownTimer = null;
+    }
+
+    if (countdownFinishTimer) {
+        clearTimeout(countdownFinishTimer);
+        countdownFinishTimer = null;
+    }
+
+    countdownStarted = false;
+}
+
+function setTrackingStatus(message) {
+    if (trackingStatus.textContent === message) return;
+
+    trackingStatus.textContent = message;
+    trackingStatus.classList.toggle("show", Boolean(message));
+}
+
 // ================= GAME START =================
 
 function startActualGame() {
+    if (gameLoopActive) return;
+
     resetGame();
 
     gameRunning = true;
@@ -762,6 +857,7 @@ function startActualGame() {
 
     pauseButton.style.display = "block";
 
+    gameLoopActive = true;
     updateGame(lastFrameTime);
 }
 
@@ -783,6 +879,7 @@ function pauseGame() {
     gamePaused = true;
 
     cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
 
     pauseScreen.style.display = "flex";
     pauseButton.innerHTML = "▶";
@@ -798,12 +895,14 @@ function resumeGame() {
 
     lastFrameTime = performance.now();
 
+    gameLoopActive = false;
     updateGame(lastFrameTime);
 }
 
 // ================= RESET =================
 
 function resetGame() {
+    clearCountdown();
     score = 0;
     currentLevel = 1;
 
@@ -818,6 +917,11 @@ function resetGame() {
     lastHitTime = 0;
     lastHeadHitTime = 0;
     lastTrailTime = 0;
+    lastNearMissTime = 0;
+    handLastSeenTime = performance.now();
+    setTrackingStatus("");
+    levelUpText.classList.remove("show");
+    levelUpInProgress = false;
 
     paddle.classList.remove("power");
 
@@ -838,6 +942,8 @@ function resetGame() {
     if (ballTrail) {
         ballTrail.innerHTML = "";
     }
+
+    particlesContainer.innerHTML = "";
 }
 
 // ================= SCORE =================
@@ -859,6 +965,12 @@ function createParticles(
     color = "#00e5ff",
     amount = 18
 ) {
+    const maxParticles = 80;
+
+    while (particlesContainer.children.length + amount > maxParticles) {
+        particlesContainer.firstElementChild?.remove();
+    }
+
     for (let i = 0; i < amount; i++) {
         const particle =
             document.createElement("div");
@@ -902,11 +1014,18 @@ function createParticles(
 function showCombo(x, y, text = null) {
     if (!text && score < 2) return;
 
+    const comboMessage = score >= 20
+        ? "LEGENDARY!"
+        : score >= 10
+            ? "UNSTOPPABLE!"
+            : score >= 5
+                ? "ON FIRE!"
+                : score >= 2
+                    ? "DOUBLE!"
+                    : `+${score}`;
+
     comboText.textContent =
-        text ||
-        (score >= 10
-            ? `🔥 ${score} COMBO!`
-            : `+${score}`);
+        text || comboMessage;
 
     comboText.style.left = `${x}px`;
     comboText.style.top = `${y}px`;
@@ -976,6 +1095,10 @@ function createTrail() {
     dot.style.top = `${ballCenterY}px`;
 
     ballTrail.appendChild(dot);
+
+    while (ballTrail.children.length > 35) {
+        ballTrail.firstElementChild?.remove();
+    }
 
     setTimeout(() => {
         dot.remove();
@@ -1101,12 +1224,14 @@ function updateHighScore() {
 function updateGame(timestamp) {
     if (!gameRunning || gamePaused) return;
 
+    gameLoopActive = true;
+
     let delta =
         (timestamp - lastFrameTime) / 16.666;
 
     lastFrameTime = timestamp;
 
-    delta = Math.min(delta, 2);
+    delta = Math.min(Math.max(delta, 0), 2);
 
     const gameWidth =
         gameArea.clientWidth;
@@ -1126,6 +1251,12 @@ function updateGame(timestamp) {
     // Physics changes noticeably at every level
     ballVelocityY +=
         levelData.gravity * delta;
+
+    const maxVelocity = 15 * levelData.multiplier;
+    ballVelocityY = Math.max(
+        -maxVelocity,
+        Math.min(maxVelocity, ballVelocityY)
+    );
 
     ballX +=
         ballVelocityX * delta;
@@ -1279,6 +1410,15 @@ function updateGame(timestamp) {
                     ? -minimumHorizontalSpeed
                     : minimumHorizontalSpeed;
         }
+    } else if (
+        isFalling &&
+        crossedPaddle &&
+        Math.abs(ballCenterX - (paddleLeft + paddleRect.width / 2)) <
+        paddleRect.width * 0.85 &&
+        now - lastNearMissTime > nearMissCooldown
+    ) {
+        lastNearMissTime = now;
+        showCombo(ballCenterX - 25, paddleTop - 25, "CLOSE!");
     }
 
     // GAME OVER
@@ -1316,6 +1456,8 @@ function endGame() {
     gamePaused = false;
 
     cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+    gameLoopActive = false;
 
     pauseButton.style.display = "none";
 
@@ -1323,6 +1465,16 @@ function endGame() {
 
     finalScoreElement.textContent =
         score;
+
+    finalBestElement.textContent = highScore;
+    finalLevelElement.textContent = getLevelFromScore().name;
+    performanceMessage.textContent = score >= 31
+        ? "LEGENDARY PERFORMANCE!"
+        : score >= 16
+            ? "You're becoming a pro!"
+            : score >= 6
+                ? "Great reflexes!"
+                : "Nice start! Keep practicing.";
 
     gameOverScreen.style.display =
         "flex";

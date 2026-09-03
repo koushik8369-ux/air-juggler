@@ -186,6 +186,30 @@ body {
     animation: hitFlashAnim 0.35s ease-out;
 }
 
+#tracking-status {
+    position: absolute;
+    top: 18px;
+    left: 50%;
+    z-index: 18;
+    padding: 8px 14px;
+    border: 1px solid rgba(255, 208, 0, 0.45);
+    border-radius: 8px;
+    background: rgba(8, 11, 20, 0.78);
+    color: #ffd000;
+    font-family: Arial, sans-serif;
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, -8px);
+    transition: opacity 0.25s, transform 0.25s;
+}
+
+#tracking-status.show {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+
 /* ================= LEVEL UP ================= */
 
 #level-up-text {
@@ -804,4 +828,44 @@ body {
     .instructions {
         grid-template-columns: 1fr;
     }
+}
+
+.camera-error {
+    max-width: 430px;
+    margin: 12px 0 0 !important;
+    color: #ff8d8d !important;
+    font-size: 0.8rem;
+}
+
+.retry-btn {
+    display: none;
+    margin-top: 4px;
+    padding: 11px 22px;
+    border: 1px solid rgba(0, 229, 255, 0.55);
+    border-radius: 10px;
+    background: transparent;
+    color: #00e5ff;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.retry-btn.show {
+    display: inline-block;
+}
+
+.result-detail {
+    margin: 0 0 8px !important;
+    font-size: 0.8rem;
+}
+
+.result-detail strong {
+    color: #00e5ff;
+}
+
+.performance-message {
+    color: #ffd000 !important;
+    font-family: 'Orbitron', sans-serif !important;
+    font-size: 0.85rem;
+    font-weight: 700;
 }
